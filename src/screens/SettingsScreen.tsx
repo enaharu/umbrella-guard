@@ -2,6 +2,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '../components/AppHeader';
 import { SettingControl } from '../components/SettingControl';
+import { COOLDOWN_MINUTES_MAX, COOLDOWN_MINUTES_MIN } from '../constants/config';
 import { bottomNavHeight, colors } from '../constants/theme';
 import { AppScreen } from '../constants/types';
 import { useConditionalScroll } from '../hooks/useConditionalScroll';
@@ -53,9 +54,9 @@ export function SettingsScreen({ guard, onNavigate }: SettingsScreenProps) {
           title="再通知までの時間"
           value={guard.settings.cooldownMinutes}
           unit="分"
-          min={10}
-          max={180}
-          step={10}
+          min={COOLDOWN_MINUTES_MIN}
+          max={COOLDOWN_MINUTES_MAX}
+          step={1}
           help="通知後、再度通知するまでの時間"
           onChange={(cooldownMinutes) => guard.updateSettings({ cooldownMinutes })}
         />

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { DEFAULT_SETTINGS, DEFAULT_STATE } from '../constants/config';
+import { COOLDOWN_MINUTES_MAX, COOLDOWN_MINUTES_MIN, DEFAULT_SETTINGS, DEFAULT_STATE } from '../constants/config';
 import { GuardLog, GuardSettings, GuardSnapshot, GuardState } from '../constants/types';
 
 const STATE_KEY = 'umbrella-guard:state';
@@ -20,6 +20,17 @@ function parseStoredJson<T>(raw: string | null, fallback: T): T {
   }
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function normalizeSettings(settings: GuardSettings): GuardSettings {
+  return {
+    ...settings,
+    cooldownMinutes: clamp(settings.cooldownMinutes, COOLDOWN_MINUTES_MIN, COOLDOWN_MINUTES_MAX),
+  };
+}
+
 export async function loadState(): Promise<GuardState> {
   const raw = await AsyncStorage.getItem(STATE_KEY);
   return { ...DEFAULT_STATE, ...parseStoredJson<Partial<GuardState>>(raw, {}) };
@@ -31,7 +42,7 @@ export async function saveState(state: GuardState) {
 
 export async function loadSettings(): Promise<GuardSettings> {
   const raw = await AsyncStorage.getItem(SETTINGS_KEY);
-  return { ...DEFAULT_SETTINGS, ...parseStoredJson<Partial<GuardSettings>>(raw, {}) };
+  return normalizeSettings({ ...DEFAULT_SETTINGS, ...parseStoredJson<Partial<GuardSettings>>(raw, {}) });
 }
 
 export async function saveSettings(settings: GuardSettings) {
