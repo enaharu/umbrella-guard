@@ -42,8 +42,18 @@ export async function requestNotificationPermission() {
   return requested.granted;
 }
 
+export async function isNotificationPermissionGranted() {
+  await prepareNotificationChannel();
+  const permission = await Notifications.getPermissionsAsync();
+  return permission.granted;
+}
+
 export async function sendUmbrellaNotification(reason: 'movement' | 'test' = 'movement') {
   await prepareNotificationChannel();
+
+  if (!(await isNotificationPermissionGranted())) {
+    throw new Error('通知が許可されていません。端末設定から通知を許可してください。');
+  }
 
   await Notifications.scheduleNotificationAsync({
     content: {

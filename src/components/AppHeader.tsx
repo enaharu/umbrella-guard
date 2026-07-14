@@ -16,13 +16,17 @@ export function AppHeader({ title, centerBrand = false, onNavigate }: AppHeaderP
 
   return (
     <View style={[styles.wrap, { paddingTop: insets.top + 8 }]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={centerBrand ? '設定' : 'ホーム'}
-        onPress={() => onNavigate(centerBrand ? 'settings' : 'home')}
-        style={styles.iconButton}>
-        <Icon ios={centerBrand ? 'line.3.horizontal' : 'chevron.left'} android={centerBrand ? 'menu' : 'arrow_back'} />
-      </Pressable>
+      {centerBrand ? (
+        <View style={styles.iconButton} />
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="ホーム"
+          onPress={() => onNavigate('home')}
+          style={styles.iconButton}>
+          <Icon ios="chevron.left" android="arrow_back" />
+        </Pressable>
+      )}
       <View style={styles.titleWrap}>
         {centerBrand ? <Icon ios="umbrella.fill" android="umbrella" size={17} color={colors.primary} /> : null}
         <Text style={[styles.title, centerBrand && styles.brandTitle]}>{title}</Text>

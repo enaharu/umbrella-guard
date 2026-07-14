@@ -1,10 +1,10 @@
 import { Platform } from 'react-native';
-import * as BackgroundFetch from 'expo-background-fetch';
+import * as BackgroundTask from 'expo-background-task';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 
 import {
-  BACKGROUND_FETCH_TASK_NAME,
+  BACKGROUND_TASK_NAME,
   LOCATION_TASK_NAME,
   LOCATION_WATCH_DISTANCE_M,
   LOCATION_WATCH_INTERVAL_MS,
@@ -58,6 +58,18 @@ export async function requestLocationPermissions() {
   });
 }
 
+export async function syncLocationPermissions() {
+  const [foreground, background] = await Promise.all([
+    Location.getForegroundPermissionsAsync(),
+    Location.getBackgroundPermissionsAsync(),
+  ]);
+
+  return updatePermissionState({
+    foregroundPermission: permissionState(foreground.granted),
+    backgroundPermission: permissionState(background.granted),
+  });
+}
+
 export async function startBackgroundLocationUpdates() {
   if (Platform.OS === 'web') {
     return false;
@@ -72,7 +84,7 @@ export async function startBackgroundLocationUpdates() {
       showsBackgroundLocationIndicator: true,
       pausesUpdatesAutomatically: false,
       foregroundService: {
-        notificationTitle: '傘おかんアプリ',
+        notificationTitle: '傘おかん',
         notificationBody: '傘忘れ防止のため位置情報を確認しています',
         notificationColor: '#2f73df',
       },
@@ -83,23 +95,43 @@ export async function startBackgroundLocationUpdates() {
   return true;
 }
 
-export async function registerBackgroundFetch() {
+export async function stopBackgroundLocationUpdates() {
+  if (Platform.OS !== 'web') {
+    const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+    if (hasStarted) {
+      await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+    }
+  }
+
+  await updatePermissionState({ locationStarted: false });
+}
+
+export async function registerBackgroundTask() {
   if (Platform.OS === 'web') {
     return;
   }
 
-  const isDefined = TaskManager.isTaskDefined(BACKGROUND_FETCH_TASK_NAME);
+  const isDefined = TaskManager.isTaskDefined(BACKGROUND_TASK_NAME);
   if (!isDefined) {
     return;
   }
 
-  const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK_NAME);
+  const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_TASK_NAME);
   if (!isRegistered) {
-    await BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK_NAME, {
-      minimumInterval: 15 * 60,
-      stopOnTerminate: false,
-      startOnBoot: true,
+    await BackgroundTask.registerTaskAsync(BACKGROUND_TASK_NAME, {
+      minimumInterval: 15,
     });
+  }
+}
+
+export async function unregisterBackgroundTask() {
+  if (Platform.OS === 'web') {
+    return;
+  }
+
+  const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_TASK_NAME);
+  if (isRegistered) {
+    await BackgroundTask.unregisterTaskAsync(BACKGROUND_TASK_NAME);
   }
 }
 

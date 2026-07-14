@@ -11,11 +11,11 @@ export type LocationPoint = {
 };
 
 export type GuardSettings = {
+  enabled: boolean;
   stayRadiusMeters: number;
   stayDurationMinutes: number;
   moveDistanceMeters: number;
   cooldownMinutes: number;
-  debugMode: boolean;
 };
 
 export type GuardState = {
@@ -26,6 +26,7 @@ export type GuardState = {
   notificationPermission: PermissionState;
   currentLocation: LocationPoint | null;
   anchorLocation: LocationPoint | null;
+  trackingStartedAt: number | null;
   stayStartedAt: number | null;
   stayingSince: number | null;
   movingDistanceMeters: number;

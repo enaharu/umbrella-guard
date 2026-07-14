@@ -1,9 +1,10 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '../components/AppHeader';
-import { DebugSwitch, SettingControl } from '../components/SettingControl';
+import { SettingControl } from '../components/SettingControl';
 import { bottomNavHeight, colors } from '../constants/theme';
 import { AppScreen } from '../constants/types';
+import { useConditionalScroll } from '../hooks/useConditionalScroll';
 import { UmbrellaGuardController } from '../hooks/useUmbrellaGuard';
 
 type SettingsScreenProps = {
@@ -12,10 +13,17 @@ type SettingsScreenProps = {
 };
 
 export function SettingsScreen({ guard, onNavigate }: SettingsScreenProps) {
+  const scroll = useConditionalScroll({
+    contentBottomPadding: bottomNavHeight + 28,
+    coveredBottomHeight: bottomNavHeight,
+  });
+
   return (
     <View style={styles.root}>
       <AppHeader title="設定" onNavigate={onNavigate} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        {...scroll}
+        contentContainerStyle={styles.content}>
         <SettingControl
           sectionTitle="滞在判定の条件"
           title="滞在時間"
@@ -52,10 +60,6 @@ export function SettingsScreen({ guard, onNavigate }: SettingsScreenProps) {
           onChange={(cooldownMinutes) => guard.updateSettings({ cooldownMinutes })}
         />
 
-        <DebugSwitch
-          value={guard.settings.debugMode}
-          onChange={(debugMode) => guard.updateSettings({ debugMode })}
-        />
       </ScrollView>
     </View>
   );

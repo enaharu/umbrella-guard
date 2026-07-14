@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { GestureResponderEvent, LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../constants/theme';
 import { InfoCard } from './InfoCard';
@@ -26,7 +27,65 @@ export function SettingControl({
   step,
   onChange,
 }: SettingControlProps) {
-  const ratio = (value - min) / (max - min);
+  const [trackWidth, setTrackWidth] = useState(0);
+  const [draftValue, setDraftValue] = useState<number | null>(null);
+  const sliderRef = useRef<View>(null);
+  const pendingValueRef = useRef(value);
+  const sliderPageXRef = useRef(0);
+  const displayValue = draftValue ?? value;
+  const ratio = (displayValue - min) / (max - min);
+  const clampedRatio = Math.max(0, Math.min(1, ratio));
+
+  useEffect(() => {
+    pendingValueRef.current = value;
+  }, [value]);
+
+  const snapValue = useCallback((rawValue: number) => {
+    const snapped = min + Math.round((rawValue - min) / step) * step;
+    return Math.max(min, Math.min(max, snapped));
+  }, [max, min, step]);
+
+  const updateDraftFromPageX = useCallback((pageX: number, measuredWidth = trackWidth, measuredPageX = sliderPageXRef.current) => {
+    if (measuredWidth <= 0) {
+      return;
+    }
+
+    const x = pageX - measuredPageX;
+    const nextRatio = Math.max(0, Math.min(1, x / measuredWidth));
+    const nextValue = snapValue(min + nextRatio * (max - min));
+    pendingValueRef.current = nextValue;
+    setDraftValue(nextValue);
+  }, [max, min, snapValue, trackWidth]);
+
+  const measureAndUpdateDraft = useCallback((pageX: number) => {
+    sliderRef.current?.measure((_x, _y, width, _height, measuredPageX) => {
+      if (width > 0) {
+        setTrackWidth(width);
+        sliderPageXRef.current = measuredPageX;
+        updateDraftFromPageX(pageX, width, measuredPageX);
+      }
+    });
+  }, [updateDraftFromPageX]);
+
+  const commitDraft = useCallback(() => {
+    const nextValue = pendingValueRef.current;
+    setDraftValue(null);
+    if (nextValue !== value) {
+      onChange(nextValue);
+    }
+  }, [onChange, value]);
+
+  const handleResponderGrant = useCallback((event: GestureResponderEvent) => {
+    measureAndUpdateDraft(event.nativeEvent.pageX);
+  }, [measureAndUpdateDraft]);
+
+  const handleResponderMove = useCallback((event: GestureResponderEvent) => {
+    updateDraftFromPageX(event.nativeEvent.pageX);
+  }, [updateDraftFromPageX]);
+
+  const handleSliderLayout = (event: LayoutChangeEvent) => {
+    setTrackWidth(event.nativeEvent.layout.width);
+  };
 
   return (
     <View style={styles.section}>
@@ -35,42 +94,38 @@ export function SettingControl({
         <View style={styles.row}>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.value}>
-            {value}
+            {displayValue}
             {unit}
           </Text>
         </View>
-        <View style={styles.track}>
-          <View style={[styles.fill, { width: `${Math.max(0, Math.min(1, ratio)) * 100}%` }]} />
-          <View style={[styles.thumb, { left: `${Math.max(0, Math.min(1, ratio)) * 100}%` }]} />
+        <View
+          ref={sliderRef}
+          style={styles.slider}
+          onLayout={handleSliderLayout}
+          onStartShouldSetResponder={() => true}
+          onMoveShouldSetResponder={() => true}
+          onResponderGrant={handleResponderGrant}
+          onResponderMove={handleResponderMove}
+          onResponderRelease={commitDraft}
+          onResponderTerminate={commitDraft}>
+          <View style={styles.track}>
+            <View style={[styles.fill, { width: `${clampedRatio * 100}%` }]} />
+          </View>
+          <View style={[styles.thumb, { left: `${clampedRatio * 100}%` }]} />
         </View>
-        <View style={styles.buttons}>
-          <Pressable style={styles.stepButton} onPress={() => onChange(Math.max(min, value - step))}>
-            <Text style={styles.stepText}>−</Text>
-          </Pressable>
-          <Pressable style={styles.stepButton} onPress={() => onChange(Math.min(max, value + step))}>
-            <Text style={styles.stepText}>＋</Text>
-          </Pressable>
+        <View style={styles.rangeLabels}>
+          <Text style={styles.rangeLabel}>
+            {min}
+            {unit}
+          </Text>
+          <Text style={styles.rangeLabel}>
+            {max}
+            {unit}
+          </Text>
         </View>
         <Text style={styles.help}>{help}</Text>
       </InfoCard>
     </View>
-  );
-}
-
-export function DebugSwitch({ value, onChange }: { value: boolean; onChange: (value: boolean) => void }) {
-  return (
-    <InfoCard style={styles.switchCard}>
-      <View>
-        <Text style={styles.title}>デバッグモード</Text>
-        <Text style={styles.help}>詳細な情報を表示します</Text>
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        trackColor={{ false: '#dbe6f3', true: colors.primary }}
-        thumbColor="#ffffff"
-      />
-    </InfoCard>
   );
 }
 
@@ -102,6 +157,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
   },
+  slider: {
+    height: 34,
+    justifyContent: 'center',
+  },
   track: {
     height: 4,
     borderRadius: 2,
@@ -114,11 +173,11 @@ const styles = StyleSheet.create({
   },
   thumb: {
     position: 'absolute',
-    top: -8,
-    width: 22,
-    height: 22,
-    marginLeft: -11,
-    borderRadius: 11,
+    top: 4,
+    width: 26,
+    height: 26,
+    marginLeft: -13,
+    borderRadius: 13,
     borderWidth: 1,
     borderColor: '#d8e4f4',
     backgroundColor: '#ffffff',
@@ -127,34 +186,18 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
   },
-  buttons: {
+  rangeLabels: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
+    justifyContent: 'space-between',
   },
-  stepButton: {
-    width: 34,
-    height: 30,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceSoft,
-  },
-  stepText: {
-    color: colors.primary,
-    fontSize: 20,
+  rangeLabel: {
+    color: colors.textSoft,
+    fontSize: 11,
     fontWeight: '800',
   },
   help: {
     color: colors.textSoft,
     fontSize: 12,
     fontWeight: '700',
-  },
-  switchCard: {
-    padding: 16,
-    minHeight: 76,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
 });

@@ -13,6 +13,7 @@ function buildIdleFrom(point: LocationPoint, state: GuardState): GuardState {
     status: 'IDLE',
     currentLocation: point,
     anchorLocation: point,
+    trackingStartedAt: state.trackingStartedAt ?? point.timestamp,
     stayStartedAt: point.timestamp,
     stayingSince: null,
     movingDistanceMeters: 0,
@@ -21,17 +22,18 @@ function buildIdleFrom(point: LocationPoint, state: GuardState): GuardState {
   };
 }
 
-async function finishCooldownIfNeeded(state: GuardState, now: number): Promise<GuardState> {
-  if (state.status !== 'COOLDOWN' || !state.cooldownUntil || now < state.cooldownUntil) {
+async function finishCooldownIfNeeded(state: GuardState, point: LocationPoint): Promise<GuardState> {
+  if (state.status !== 'COOLDOWN' || !state.cooldownUntil || point.timestamp < state.cooldownUntil) {
     return state;
   }
 
-  await addLog({ kind: 'cooldown-ended', title: 'クールダウン終了' }, now);
+  await addLog({ kind: 'cooldown-ended', title: 'クールダウン終了' }, point.timestamp);
   return {
     ...state,
     status: 'IDLE',
-    anchorLocation: state.currentLocation,
-    stayStartedAt: state.currentLocation?.timestamp ?? now,
+    currentLocation: point,
+    anchorLocation: point,
+    stayStartedAt: point.timestamp,
     stayingSince: null,
     movingDistanceMeters: 0,
     cooldownUntil: null,
@@ -40,7 +42,26 @@ async function finishCooldownIfNeeded(state: GuardState, now: number): Promise<G
 
 export async function processLocationPoint(point: LocationPoint, shouldNotify = true) {
   const [settings, savedState] = await Promise.all([loadSettings(), loadState()]);
-  let state = await finishCooldownIfNeeded(savedState, point.timestamp);
+
+  if (!settings.enabled) {
+    const nextState: GuardState = {
+      ...savedState,
+      status: 'IDLE',
+      currentLocation: point,
+      anchorLocation: null,
+      trackingStartedAt: null,
+      stayStartedAt: null,
+      stayingSince: null,
+      locationStarted: false,
+      movingDistanceMeters: 0,
+      cooldownUntil: null,
+      lastError: null,
+    };
+    await saveState(nextState);
+    return nextState;
+  }
+
+  let state = await finishCooldownIfNeeded(savedState, point);
 
   if (!state.anchorLocation || !state.stayStartedAt) {
     const nextState = buildIdleFrom(point, state);
@@ -76,21 +97,36 @@ export async function processLocationPoint(point: LocationPoint, shouldNotify = 
       );
 
       const cooldownUntil = point.timestamp + minutesToMs(settings.cooldownMinutes);
-      if (shouldNotify) {
-        await sendUmbrellaNotification('movement');
-      }
-      await addLog({ kind: 'notification-sent', title: '通知を送信', detail: '「傘忘れてない？」' }, point.timestamp);
-
       const cooldownState: GuardState = {
         ...movedState,
         status: 'COOLDOWN',
         currentLocation: point,
         movingDistanceMeters: Math.round(distanceFromAnchor),
-        lastNotificationAt: point.timestamp,
         cooldownUntil,
       };
       await saveState(cooldownState);
-      return cooldownState;
+
+      if (!shouldNotify) {
+        return cooldownState;
+      }
+
+      try {
+        await sendUmbrellaNotification('movement');
+        const notifiedState = {
+          ...cooldownState,
+          lastNotificationAt: point.timestamp,
+          lastError: null,
+        };
+        await saveState(notifiedState);
+        await addLog({ kind: 'notification-sent', title: '通知を送信', detail: '「傘忘れてない？」' }, point.timestamp);
+        return notifiedState;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown notification error';
+        const failedState = { ...cooldownState, lastError: message };
+        await saveState(failedState);
+        await addLog({ kind: 'system', title: '通知送信エラー', detail: message }, point.timestamp);
+        return failedState;
+      }
     }
 
     await saveState(state);
@@ -127,10 +163,11 @@ export async function processLocationPoint(point: LocationPoint, shouldNotify = 
 }
 
 export function getStayDurationMs(state: GuardState) {
-  if (!state.stayStartedAt) {
+  const startedAt = state.trackingStartedAt ?? state.stayStartedAt;
+  if (!startedAt) {
     return 0;
   }
-  return Math.max(0, Date.now() - state.stayStartedAt);
+  return Math.max(0, Date.now() - startedAt);
 }
 
 export function getNextCondition(state: GuardState, settings: GuardSettings) {

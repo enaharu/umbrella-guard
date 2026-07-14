@@ -6,11 +6,23 @@ import { GuardLog, GuardSettings, GuardSnapshot, GuardState } from '../constants
 const STATE_KEY = 'umbrella-guard:state';
 const SETTINGS_KEY = 'umbrella-guard:settings';
 const LOGS_KEY = 'umbrella-guard:logs';
-const MAX_LOGS = 80;
+const MAX_LOGS = 20;
+
+function parseStoredJson<T>(raw: string | null, fallback: T): T {
+  if (!raw) {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
 
 export async function loadState(): Promise<GuardState> {
   const raw = await AsyncStorage.getItem(STATE_KEY);
-  return raw ? { ...DEFAULT_STATE, ...JSON.parse(raw) } : DEFAULT_STATE;
+  return { ...DEFAULT_STATE, ...parseStoredJson<Partial<GuardState>>(raw, {}) };
 }
 
 export async function saveState(state: GuardState) {
@@ -19,7 +31,7 @@ export async function saveState(state: GuardState) {
 
 export async function loadSettings(): Promise<GuardSettings> {
   const raw = await AsyncStorage.getItem(SETTINGS_KEY);
-  return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : DEFAULT_SETTINGS;
+  return { ...DEFAULT_SETTINGS, ...parseStoredJson<Partial<GuardSettings>>(raw, {}) };
 }
 
 export async function saveSettings(settings: GuardSettings) {
@@ -28,7 +40,8 @@ export async function saveSettings(settings: GuardSettings) {
 
 export async function loadLogs(): Promise<GuardLog[]> {
   const raw = await AsyncStorage.getItem(LOGS_KEY);
-  return raw ? JSON.parse(raw) : [];
+  const logs = parseStoredJson<GuardLog[]>(raw, []);
+  return Array.isArray(logs) ? logs.slice(0, MAX_LOGS) : [];
 }
 
 export async function saveLogs(logs: GuardLog[]) {

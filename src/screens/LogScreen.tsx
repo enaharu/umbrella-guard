@@ -5,6 +5,7 @@ import { Icon } from '../components/Icon';
 import { InfoCard } from '../components/InfoCard';
 import { bottomNavHeight, colors } from '../constants/theme';
 import { AppScreen, GuardLog } from '../constants/types';
+import { useConditionalScroll } from '../hooks/useConditionalScroll';
 import { UmbrellaGuardController } from '../hooks/useUmbrellaGuard';
 import { formatDateLabel, formatTime } from '../services/format';
 
@@ -24,13 +25,19 @@ const iconByKind: Record<GuardLog['kind'], { ios: string; android: string }> = {
 };
 
 export function LogScreen({ guard, onNavigate }: LogScreenProps) {
+  const scroll = useConditionalScroll({
+    contentBottomPadding: bottomNavHeight + 28,
+    coveredBottomHeight: bottomNavHeight,
+  });
   const logs = guard.logs;
-  const dateLabel = logs[0]?.timestamp ? formatDateLabel(logs[0].timestamp) : formatDateLabel(Date.now());
+  const dateLabel = logs[0]?.timestamp ? formatDateLabel(logs[0].timestamp) : '記録なし';
 
   return (
     <View style={styles.root}>
       <AppHeader title="ログ" onNavigate={onNavigate} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        {...scroll}
+        contentContainerStyle={styles.content}>
         <Text style={styles.date}>{dateLabel}</Text>
         <InfoCard style={styles.card}>
           {logs.length === 0 ? (

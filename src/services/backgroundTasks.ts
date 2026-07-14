@@ -1,8 +1,8 @@
-import * as BackgroundFetch from 'expo-background-fetch';
+import * as BackgroundTask from 'expo-background-task';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 
-import { BACKGROUND_FETCH_TASK_NAME, LOCATION_TASK_NAME } from '../constants/config';
+import { BACKGROUND_TASK_NAME, LOCATION_TASK_NAME } from '../constants/config';
 import { addLog } from './storage';
 import { processLocationPoint } from './tracker';
 import { toPoint } from './locationService';
@@ -19,7 +19,7 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   }
 });
 
-TaskManager.defineTask(BACKGROUND_FETCH_TASK_NAME, async () => {
+TaskManager.defineTask(BACKGROUND_TASK_NAME, async () => {
   try {
     const location = await Location.getLastKnownPositionAsync({
       maxAge: 15 * 60 * 1000,
@@ -27,17 +27,17 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK_NAME, async () => {
     });
 
     if (!location) {
-      return BackgroundFetch.BackgroundFetchResult.NoData;
+      return BackgroundTask.BackgroundTaskResult.Success;
     }
 
     await processLocationPoint(toPoint(location), true);
-    return BackgroundFetch.BackgroundFetchResult.NewData;
+    return BackgroundTask.BackgroundTaskResult.Success;
   } catch (error) {
     await addLog({
       kind: 'system',
       title: 'バックグラウンド確認エラー',
       detail: error instanceof Error ? error.message : 'Unknown error',
     });
-    return BackgroundFetch.BackgroundFetchResult.Failed;
+    return BackgroundTask.BackgroundTaskResult.Failed;
   }
 });

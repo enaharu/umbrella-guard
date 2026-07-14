@@ -22,10 +22,3 @@ export function formatDateLabel(timestamp: number) {
 export function formatMinutes(ms: number) {
   return Math.max(0, Math.floor(ms / 60_000));
 }
-
-export function formatCoordinate(value: number | undefined) {
-  if (typeof value !== 'number') {
-    return '--';
-  }
-  return value.toFixed(6);
-}

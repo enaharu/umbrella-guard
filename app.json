@@ -1,6 +1,6 @@
-{
+﻿{
   "expo": {
-    "name": "umbrella-guard",
+    "name": "傘おかん",
     "slug": "umbrella-guard",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,11 +8,16 @@
     "scheme": "umbrellaguard",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "supportsTablet": false,
       "infoPlist": {
-        "UIBackgroundModes": ["location", "fetch"]
-      }
+        "UIBackgroundModes": [
+          "location",
+          "processing"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.haruki.umbrellaguard"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +29,12 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "web": {
@@ -35,8 +45,8 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Umbrella Guard to check when you leave a stayed place.",
-          "locationWhenInUsePermission": "Allow Umbrella Guard to use your location.",
+          "locationAlwaysAndWhenInUsePermission": "傘忘れを防ぐため、滞在場所から離れたかを確認します。",
+          "locationWhenInUsePermission": "傘忘れを防ぐため、現在地を使用します。",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
@@ -58,10 +68,17 @@
             "imageWidth": 76
           }
         }
-      ]
+      ],
+      "expo-background-task"
     ],
     "experiments": {
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "e8566807-715b-46b7-a00f-ba39d54cb89d"
+      }
     }
   }
 }
+
